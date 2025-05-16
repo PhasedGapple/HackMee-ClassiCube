@@ -497,6 +497,7 @@ static void CuboidCommand_Draw(IVec3 min, IVec3 max) {
 	Vec3 minVec = { (float)min.x, (float)min.y, (float)min.z };
 	Vec3 maxVec = { (float)max.x, (float)max.y, (float)max.z };
 	API_SortFill(minVec, maxVec, toPlace);
+	Server.Tick(ScheduledTask_Add(0.07, API_Fill));
 }
 
 void CuboidCommand_Execute(const cc_string* args, int argsCount) {
@@ -953,6 +954,7 @@ void PosFlyCMD_Executer()
 	{
 		posflyswitch = true;
 		struct HacksComp* hacks = &Entities.CurPlayer->Hacks;
+		Server.Tick(ScheduledTask_Add(0.00125, PosFlyCMD_Execute));
 		PosFlyCMD_Execute();
 	}
 	else
@@ -1080,6 +1082,7 @@ void carCMD_Executer()
 	{
 		carswitch = true;
 		struct HacksComp* hacks = &Entities.CurPlayer->Hacks;
+		Server.Tick(ScheduledTask_Add(0.00225, carCMD_Execute));
 		carCMD_Execute();
 	}
 	else
@@ -1175,6 +1178,7 @@ void NukerCMD_Execute(const cc_string* args, int argsCount)
 	if (nuking == false)
 	{
 		nuking = true;
+		Server.Tick(ScheduledTask_Add(0.0025, NukerCMD_Executer));
 	}
 	else
 	{
@@ -1229,6 +1233,7 @@ static void CuboidBotCommand_Draw(IVec3 min, IVec3 max) {
 	Vec3 minVec = { (float)min.x, (float)min.y, (float)min.z };
 	Vec3 maxVec = { (float)max.x, (float)max.y, (float)max.z };
 	API_SortFillBot(minVec, maxVec, toPlace);
+	Server.Tick(ScheduledTask_Add(0.07, API_FillBot));
 }
 
 void CuboidBotCommand_Execute(const cc_string* args, int argsCount) {
@@ -1285,12 +1290,6 @@ static void OnInit(void) {
 	Commands_Register(&NukerCommand);
 	Commands_Register(&ClickGuiCommand);
 	Commands_Register(&CuboidBotCommand);
-
-	Server.Tick(ScheduledTask_Add(0.07,    API_FillBot));
-	Server.Tick(ScheduledTask_Add(0.0025,  NukerCMD_Executer));
-	Server.Tick(ScheduledTask_Add(0.00225, carCMD_Execute));
-	Server.Tick(ScheduledTask_Add(0.00125, PosFlyCMD_Execute));
-	Server.Tick(ScheduledTask_Add(0.07,    API_Fill));
 }
 
 static void OnFree(void) {
