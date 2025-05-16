@@ -411,7 +411,8 @@ const BindMapping PadBind_Defaults[BIND_COUNT] = {
 	{ 0, 0 }, { 0, 0 }, { 0, 0 },           /* BIND_HOTBAR_1, BIND_HOTBAR_2, BIND_HOTBAR_3 */
 	{ 0, 0 }, { 0, 0 }, { 0, 0 },           /* BIND_HOTBAR_4, BIND_HOTBAR_5, BIND_HOTBAR_6 */
 	{ 0, 0 }, { 0, 0 }, { 0, 0 },           /* BIND_HOTBAR_7, BIND_HOTBAR_8, BIND_HOTBAR_9 */
-	{ CCPAD_ZL, 0 }, { CCPAD_ZR, 0 }        /* BIND_HOTBAR_LEFT, BIND_HOTBAR_RIGHT */
+	{ CCPAD_ZL, 0 }, { CCPAD_ZR, 0 }, {0, 0}/* BIND_HOTBAR_LEFT, BIND_HOTBAR_RIGHT, BIND_OPEN_MENU */
+
 };
 
 const BindMapping KeyBind_Defaults[BIND_COUNT] = {
@@ -435,7 +436,7 @@ const BindMapping KeyBind_Defaults[BIND_COUNT] = {
 	{ '1', 0 }, { '2', 0 }, { '3', 0 },             /* BIND_HOTBAR_1, BIND_HOTBAR_2, BIND_HOTBAR_3 */
 	{ '4', 0 }, { '5', 0 }, { '6', 0 },             /* BIND_HOTBAR_4, BIND_HOTBAR_5, BIND_HOTBAR_6 */
 	{ '7', 0 }, { '8', 0 }, { '9', 0 },             /* BIND_HOTBAR_7, BIND_HOTBAR_8, BIND_HOTBAR_9 */
-	{ 0, 0 }, { 0, 0 }                              /* BIND_HOTBAR_LEFT, BIND_HOTBAR_RIGHT */
+	{ 0, 0 }, { 0, 0 }, {CCKEY_RSHIFT, 0},          /* BIND_HOTBAR_LEFT, BIND_HOTBAR_RIGHT, BIND_OPEN_MENU */
 };
 
 static const char* const bindNames[BIND_COUNT] = {
@@ -452,7 +453,7 @@ static const char* const bindNames[BIND_COUNT] = {
 	"Hotbar1", "Hotbar2", "Hotbar3",
 	"Hotbar4", "Hotbar5", "Horbar6",
 	"Hotbar7", "Hotbar8", "Hotbar9",
-	"HotbarLeft", "HotbarRight"
+	"HotbarLeft", "HotbarRight", "OpenMenu"
 };
 
 

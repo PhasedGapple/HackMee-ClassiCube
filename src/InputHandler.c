@@ -25,6 +25,7 @@
 #include "Protocol.h"
 #include "AxisLinesRenderer.h"
 #include "Picking.h"
+#include "api.h"
 
 static cc_bool input_buttonsDown[3];
 static int input_pickingId = -1;
@@ -998,6 +999,7 @@ static void OnInit(void) {
 	Bind_OnReleased[BIND_BACK]    = Player_ReleaseDown;
 	Bind_OnReleased[BIND_LEFT]    = Player_ReleaseLeft;
 	Bind_OnReleased[BIND_RIGHT]   = Player_ReleaseRight;
+	Bind_OnTriggered[BIND_OPEN_MENU] = API_PauseScreen1_Show;
 }
 
 static void OnFree(void) {

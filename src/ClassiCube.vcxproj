@@ -203,6 +203,7 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <TreatSpecificWarningsAsErrors>4716;4013</TreatSpecificWarningsAsErrors>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -373,6 +374,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Animations.h" />
+    <ClInclude Include="api.h" />
     <ClInclude Include="Commands.h" />
     <ClInclude Include="EntityRenderers.h" />
     <ClInclude Include="LBackend.h" />
@@ -450,6 +452,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animations.c" />
+    <ClCompile Include="api.c" />
     <ClCompile Include="Commands.c" />
     <ClCompile Include="EntityRenderers.c" />
     <ClCompile Include="GameVersion.c" />

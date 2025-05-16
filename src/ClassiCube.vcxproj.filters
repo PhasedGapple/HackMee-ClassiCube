@@ -354,6 +354,9 @@
     <ClInclude Include="Queue.h">
       <Filter>Header Files\Utils</Filter>
     </ClInclude>
+    <ClInclude Include="api.h">
+      <Filter>Header Files\Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="String.c">
@@ -793,6 +796,9 @@
     </ClCompile>
     <ClCompile Include="Window_WiiU.c">
       <Filter>Source Files\Window</Filter>
+    </ClCompile>
+    <ClCompile Include="api.c">
+      <Filter>Source Files\Game</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

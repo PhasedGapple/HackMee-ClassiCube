@@ -17,6 +17,24 @@
 #include "TexturePack.h"
 #include "Options.h"
 #include "Drawer2D.h"
+#include "Protocol.h"
+#include "Stream.h"
+#include "Entity.h"
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
+#include "Camera.h"
+#include "Core.h"
+#include <time.h>
+#include "Menus.h"
+#include "Gui.h"
+#include "PackedCol.h"
+#include "Widgets.h"
+#include "api.h"
+
+cc_bool posflyswitch = false;
+cc_bool carswitch = false;
+cc_bool nuking = false;
 
 #define COMMANDS_PREFIX "/client"
 #define COMMANDS_PREFIX_SPACE "/client "
@@ -26,8 +44,18 @@ static struct ChatCommand* cmds_tail;
 void Commands_Register(struct ChatCommand* cmd) {
 	LinkedList_Append(cmd, cmds_head, cmds_tail);
 }
+/*########################################################################################################################*
+*------------------------------------------------------External Functions---------------------------------------------------*
+*#########################################################################################################################*/
 
+void wait(double seconds) {
+	clock_t start = clock();
+	while ((double)(clock() - start) / CLOCKS_PER_SEC < seconds) {
 
+	}
+}
+
+void nop() {}
 /*########################################################################################################################*
 *------------------------------------------------------Command handling---------------------------------------------------*
 *#########################################################################################################################*/
@@ -351,8 +379,7 @@ static void PlaceCommand_Execute(const cc_string* args, int argsCount) {
 }
 
 static struct ChatCommand PlaceCommand = {
-	"Place", PlaceCommand_Execute,
-	COMMAND_FLAG_SINGLEPLAYER_ONLY,
+	"Place", PlaceCommand_Execute, 0,
 	{
 		"&a/client place [block] [x y z]",
 		"&ePlaces block at [x y z].",
@@ -467,16 +494,12 @@ static void CuboidCommand_Draw(IVec3 min, IVec3 max) {
 	toPlace = (BlockID)cuboid_block;
 	if (cuboid_block == -1) toPlace = Inventory_SelectedBlock;
 
-	for (y = min.y; y <= max.y; y++) {
-		for (z = min.z; z <= max.z; z++) {
-			for (x = min.x; x <= max.x; x++) {
-				Game_ChangeBlock(x, y, z, toPlace);
-			}
-		}
-	}
+	Vec3 minVec = { (float)min.x, (float)min.y, (float)min.z };
+	Vec3 maxVec = { (float)max.x, (float)max.y, (float)max.z };
+	API_SortFill(minVec, maxVec, toPlace);
 }
 
-static void CuboidCommand_Execute(const cc_string* args, int argsCount) {
+void CuboidCommand_Execute(const cc_string* args, int argsCount) {
 	cc_string value = *args;
 
 	DrawOpCommand_ResetState();
@@ -495,8 +518,7 @@ static void CuboidCommand_Execute(const cc_string* args, int argsCount) {
 }
 
 static struct ChatCommand CuboidCommand = {
-	"Cuboid", CuboidCommand_Execute,
-	COMMAND_FLAG_SINGLEPLAYER_ONLY | COMMAND_FLAG_UNSPLIT_ARGS,
+	"Cuboid", CuboidCommand_Execute, COMMAND_FLAG_UNSPLIT_ARGS,
 	{
 		"&a/client cuboid [block] [persist]",
 		"&eFills the 3D rectangle between two points with [block].",
@@ -595,8 +617,7 @@ static void TeleportCommand_Execute(const cc_string* args, int argsCount) {
 }
 
 static struct ChatCommand TeleportCommand = {
-	"TP", TeleportCommand_Execute,
-	COMMAND_FLAG_SINGLEPLAYER_ONLY,
+	"TP", TeleportCommand_Execute, 0,
 	{
 		"&a/client tp [x y z]",
 		"&eMoves you to the given coordinates.",
@@ -793,6 +814,454 @@ static struct ChatCommand BlockEditCommand = {
 
 
 /*########################################################################################################################*
+*------------------------------------------------------BypassCommand----------------------------------------------------*
+*#########################################################################################################################*/
+
+void bypassCMD_Execute(const cc_string* args, int argsCount)
+{
+	if (String_CaselessEqualsConst(args, "motd"))
+	{
+		Server.MOTD = String_FromRawArray("Bypassed by HackMee");
+		struct HacksComp* hacks = &Entities.CurPlayer->Hacks;
+		hacks->CanAnyHacks = true; hacks->CanFly = true;
+		hacks->CanNoclip = true; hacks->CanRespawn = true;
+		hacks->CanSpeed = true; hacks->CanPushbackBlocks = true;
+
+		hacks->CanUseThirdPerson = true;
+		hacks->CanSeeAllNames = true && hacks->IsOp;
+		Chat_AddRaw("&4Hack&bMee&f: Successfully bypassed!");
+	}
+	else
+	{
+		if (String_CaselessEqualsConst(args, ""))
+		{
+			Chat_AddRaw("&eError: &4Empty argument");
+			Chat_AddRaw("&efor a list of arguments, enter /client help bypass");
+		}
+		else
+		{
+			Chat_AddRaw("&eError: &4Unknown argument");
+			Chat_AddOf(args, MSG_TYPE_NORMAL);
+			Chat_AddRaw("");
+			Chat_AddRaw("&efor a list of arguments, enter /client help bypass");
+		}
+	}
+}
+
+static struct ChatCommand BypassCommand = {
+	"bypass", bypassCMD_Execute,
+	0,
+	{
+		"&a/client bypass [argument]",
+		"&eBypasses Something.",
+		"",
+		"&7Avaiable arguments: MOTD"
+	}
+};
+
+
+/*########################################################################################################################*
+*------------------------------------------------------RenameCommand----------------------------------------------------*
+*#########################################################################################################################*/
+
+void RenameCMD_Execute(const cc_string* args, int argsCount)
+{
+	static const cc_string title = String_FromConst("&eClientName changed!");
+	static const cc_string reason = String_FromConst("&4Please rejoin using the rejoin button");
+	Server.AppName = String_FromReadonly(args->buffer);
+	Game_Disconnect(&title, &reason);
+	
+}
+
+static struct ChatCommand RenameCommand = {
+	"rename", RenameCMD_Execute,
+	0,
+	{
+		"&a/client rename [argument]",
+		"&eRenames the client for the server.",
+	}
+};
+
+
+/*########################################################################################################################*
+*------------------------------------------------------PosFlyCommand----------------------------------------------------*
+*#########################################################################################################################*/
+
+char* nearest_number(float n) {
+	static char str[50];
+	int nearest = 0;
+	float min_diff = fabs(n - nearest);
+	for (int i = 1; i <= 4; i++) {
+		float diff = fabs(n - i);
+		if (diff < min_diff) {
+			nearest = i;
+			min_diff = diff;
+		}
+	}
+	sprintf(str, "%d", nearest);  // Use "%d" since nearest is an integer
+	return str;
+}
+
+
+static void PosFlyCMD_Execute()
+{
+	if (posflyswitch == true)
+	{
+		float v = Entities.CurPlayer->Base.Yaw / 90;  // Example logic for calculating a value
+		char* a = nearest_number(v);  // Get the nearest number as a string
+		Vec3 Pos = Entities.CurPlayer->Base.Position;
+		float PlayerX = Pos.x;
+		float PlayerY = Pos.y;
+		float PlayerZ = Pos.z;
+		if (strcmp(a, "4") == 0)
+		{
+			PlayerZ = PlayerZ - 0.05;
+		}
+		else
+		{
+			if (strcmp(a, "0") == 0)
+			{
+				PlayerZ = PlayerZ - 0.05;
+			}
+		}
+		if (strcmp(a, "1") == 0)
+		{
+			PlayerX = PlayerX + 0.05;
+		}
+		if (strcmp(a, "2") == 0)
+		{
+			PlayerZ = PlayerZ + 0.05;
+		}
+		if (strcmp(a, "3") == 0)
+		{
+			PlayerX = PlayerX - 0.05;
+		}
+		char playerPositionString[50]; // Adjust size as needed
+
+		sprintf(playerPositionString, "/client tp %f %f %f",
+			PlayerX,
+			PlayerY,
+			PlayerZ);
+		const cc_string w = String_FromRawArray(playerPositionString);
+		Commands_Execute(&w);
+	}
+}
+
+void PosFlyCMD_Executer()
+{
+	if (posflyswitch == false)
+	{
+		posflyswitch = true;
+		struct HacksComp* hacks = &Entities.CurPlayer->Hacks;
+		PosFlyCMD_Execute();
+	}
+	else
+	{
+		posflyswitch = false;
+	}
+}
+
+static struct ChatCommand PosFlyCommand = {
+	"posfly", PosFlyCMD_Executer,
+	0,
+	{
+		"&a/client posfly",
+		"&eA new way to fly.",
+	}
+};
+
+
+/*########################################################################################################################*
+*------------------------------------------------------StreetCarCommand----------------------------------------------------*
+*#########################################################################################################################*/
+
+static void carCMD_Execute()
+{
+	if (carswitch == true)
+	{
+		float v = Entities.CurPlayer->Base.Yaw / 90;  // Example logic for calculating a value
+		char* a = nearest_number(v);  // Get the nearest number as a string
+		Vec3 Pos = Entities.CurPlayer->Base.Position;
+		float PlayerX = Pos.x;
+		float PlayerY = Pos.y;
+		float PlayerZ = Pos.z;
+
+		int PlayerX1 = Pos.x;
+		int PlayerY1 = Pos.y;
+		int PlayerZ1 = Pos.z;
+		if (strcmp(a, "4") == 0)
+		{
+			if (World_GetBlock(PlayerX1, PlayerY1 - 1, PlayerZ1 - 1) == 34)
+			{
+				if (World_GetBlock(PlayerX1, PlayerY1, PlayerZ1 - 1) == 0) {
+					PlayerZ = PlayerZ - 0.05;
+				}
+			}
+			else
+			{
+				if (World_GetBlock(PlayerX1, PlayerY1 - 1, PlayerZ1 - 1) == 0)
+				{
+					if (World_GetBlock(PlayerX1, PlayerY1, PlayerZ1 - 1) == 34)
+					{
+						PlayerZ = PlayerZ - 0.05;
+						PlayerY = PlayerY + 1;
+					}
+					else
+					{
+						if (World_GetBlock(PlayerX1, PlayerY1, PlayerZ1 - 1) == 34)
+						{
+							PlayerZ = PlayerZ - 0.05;
+							PlayerY = PlayerY + 1;
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			if (strcmp(a, "0") == 0)
+			{
+				if (World_GetBlock(PlayerX1, PlayerY1 - 1, PlayerZ1 - 1) == 34)
+				{
+					if (World_GetBlock(PlayerX1, PlayerY1, PlayerZ1 - 1) == 0) {
+						PlayerZ = PlayerZ - 0.05;
+					}
+				}
+				else
+				{
+					if (World_GetBlock(PlayerX1, PlayerY1 - 1, PlayerZ1 - 1) == 0)
+					{
+						if (World_GetBlock(PlayerX1, PlayerY1, PlayerZ1 - 1) == 34)
+						{
+							PlayerZ = PlayerZ - 0.05;
+							PlayerY = PlayerY + 1;
+						}
+						else
+						{
+							if (World_GetBlock(PlayerX1, PlayerY1, PlayerZ1 - 1) == 34)
+							{
+								PlayerZ = PlayerZ - 0.05;
+								PlayerY = PlayerY + 1;
+							}
+						}
+					}
+				}
+			}
+		}
+		if (strcmp(a, "1") == 0)
+		{
+			if (World_GetBlock(PlayerX1 + 1, PlayerY1 - 1, PlayerZ1) == 34) { PlayerX = PlayerX + 0.05; }
+			else { if (World_GetBlock(PlayerX1 + 1, PlayerY1 - 1, PlayerZ1) == 23) { PlayerX = PlayerX + 0.05; } }
+		}
+		if (strcmp(a, "2") == 0)
+		{
+			if (World_GetBlock(PlayerX1, PlayerY1 - 1, PlayerZ1 + 1) == 34) { PlayerZ = PlayerZ + 0.05; }
+			else { if (World_GetBlock(PlayerX1, PlayerY1 - 1, PlayerZ1 + 1) == 23) { PlayerX = PlayerX + 0.05; } }
+		}
+		if (strcmp(a, "3") == 0)
+		{
+			if (World_GetBlock(PlayerX1 - 1, PlayerY1 - 1, PlayerZ1) == 34) { PlayerX = PlayerX - 0.05; }
+			else { if (World_GetBlock(PlayerX1 - 1, PlayerY1 - 1, PlayerZ1) == 23) { PlayerX = PlayerX - 0.05; } }
+		}
+		char playerPositionString[50]; // Adjust size as needed
+
+		sprintf(playerPositionString, "/client tp %f %f %f",
+			PlayerX,
+			PlayerY,
+			PlayerZ);
+		const cc_string w = String_FromRawArray(playerPositionString);
+		Commands_Execute(&w);
+	}
+}
+
+void carCMD_Executer()
+{
+	if (carswitch == false)
+	{
+		carswitch = true;
+		struct HacksComp* hacks = &Entities.CurPlayer->Hacks;
+		carCMD_Execute();
+	}
+	else
+	{
+		carswitch = false;
+	}
+}
+
+static struct ChatCommand carCommand = {
+	"car", carCMD_Executer,
+	0,
+	{
+		"&a/client car",
+		"&eTurn yourself into a car!",
+		"&eStreet block: &0black_wool",
+		"VROoOM VROoOM"
+	}
+};
+
+
+/*########################################################################################################################*
+*------------------------------------------------------NukerCommand----------------------------------------------------*
+*#########################################################################################################################*/
+
+static void NukerCMD_Executer()
+{
+	Vec3 Pos = Entities.CurPlayer->Base.Position;
+	int X = Pos.x;
+	int Y = Pos.y;
+	int Z = Pos.z;
+	if (nuking == true)
+	{
+		if (Y - 1 >= 0)
+		{
+			if (World_Contains(X, Y - 1, Z) && World_GetBlock(X, Y - 1, Z) != 0)
+			{
+				Game_ChangeBlock(X, Y - 1, Z, 0);
+			}
+			if (World_Contains(X, Y, Z - 1) && World_GetBlock(X, Y, Z - 1) != 0)
+			{
+				Game_ChangeBlock(X, Y, Z - 1, 0);
+			}
+			if (World_Contains(X - 1, Y - 1, Z) && World_GetBlock(X - 1, Y - 1, Z) != 0)
+			{
+				Game_ChangeBlock(X - 1, Y - 1, Z, 0);
+			}
+			if (World_Contains(X + 1, Y - 1, Z) && World_GetBlock(X + 1, Y - 1, Z) != 0)
+			{
+				Game_ChangeBlock(X + 1, Y - 1, Z, 0);
+			}
+			if (World_Contains(X, Y - 1, Z + 1) && World_GetBlock(X, Y - 1, Z + 1) != 0)
+			{
+				Game_ChangeBlock(X, Y - 1, Z + 1, 0);
+			}
+			if (World_Contains(X + 1, Y - 1, Z) && World_GetBlock(X + 1, Y - 1, Z) != 0)
+			{
+				Game_ChangeBlock(X + 1, Y - 1, Z, 0);
+			}
+			if (World_Contains(X, Y - 1, Z - 1) && World_GetBlock(X, Y - 1, Z - 1) != 0)
+			{
+				Game_ChangeBlock(X, Y - 1, Z - 1, 0);
+			}
+			if (World_Contains(X - 1, Y, Z) && World_GetBlock(X - 1, Y, Z) != 0)
+			{
+				Game_ChangeBlock(X - 1, Y, Z, 0);
+			}
+			if (World_Contains(X - 1, Y - 1, Z - 1) && World_GetBlock(X - 1, Y - 1, Z - 1) != 0)
+			{
+				Game_ChangeBlock(X - 1, Y - 1, Z - 1, 0);
+			}
+			if (World_Contains(X, Y, Z + 1) && World_GetBlock(X, Y, Z + 1) != 0)
+			{
+				Game_ChangeBlock(X, Y, Z + 1, 0);
+			}
+			if (World_Contains(X + 1, Y - 1, Z + 1) && World_GetBlock(X + 1, Y - 1, Z + 1) != 0)
+			{
+				Game_ChangeBlock(X + 1, Y - 1, Z + 1, 0);
+			}
+			if (World_Contains(X - 1, Y - 1, Z + 1) && World_GetBlock(X - 1, Y - 1, Z + 1) != 0)
+			{
+				Game_ChangeBlock(X - 1, Y - 1, Z + 1, 0);
+			}
+			if (World_Contains(X + 1, Y - 1, Z - 1) && World_GetBlock(X + 1, Y - 1, Z - 1) != 0)
+			{
+				Game_ChangeBlock(X + 1, Y - 1, Z - 1, 0);
+			}
+		}
+	}
+}
+
+void NukerCMD_Execute(const cc_string* args, int argsCount)
+{
+	if (nuking == false)
+	{
+		nuking = true;
+	}
+	else
+	{
+		nuking = false;
+	}
+}
+
+static struct ChatCommand NukerCommand = {
+	"nuker", NukerCMD_Execute,
+	0,
+	{
+		"&a/client nuker",
+		"&eDestroys blocks arround you.",
+	}
+};
+
+
+/*########################################################################################################################*
+*------------------------------------------------------ClickGuiCommand----------------------------------------------------*
+*#########################################################################################################################*/
+
+
+
+static void ClickGuiCMD_Execute(const cc_string* args, int argsCount)
+{
+	API_PauseScreen1_Show();
+}
+
+
+static struct ChatCommand ClickGuiCommand = {
+	"clickgui", ClickGuiCMD_Execute,
+	0,
+	{
+		"&a/client clickgui",
+		"&eOpens the clickgui.",
+	}
+};
+
+
+/*########################################################################################################################*
+*-------------------------------------------------------CuboidBotCommand-----------------------------------------------------*
+*#########################################################################################################################*/
+static int cuboid_block;
+
+static void CuboidBotCommand_Draw(IVec3 min, IVec3 max) {
+	BlockID toPlace;
+	int x, y, z;
+
+	toPlace = (BlockID)cuboid_block;
+	if (cuboid_block == -1) toPlace = Inventory_SelectedBlock;
+
+	Vec3 minVec = { (float)min.x, (float)min.y, (float)min.z };
+	Vec3 maxVec = { (float)max.x, (float)max.y, (float)max.z };
+	API_SortFillBot(minVec, maxVec, toPlace);
+}
+
+void CuboidBotCommand_Execute(const cc_string* args, int argsCount) {
+	cc_string value = *args;
+
+	DrawOpCommand_ResetState();
+	drawOp_name = "CuboidBot";
+	drawOp_Func = CuboidBotCommand_Draw;
+
+	DrawOpCommand_ExtractPersistArg(&value);
+	cuboid_block = -1; /* Default to cuboiding with currently held block */
+
+	if (value.length) {
+		cuboid_block = DrawOpCommand_ParseBlock(&value);
+		if (cuboid_block == -1) return;
+	}
+
+	DrawOpCommand_Begin();
+}
+
+static struct ChatCommand CuboidBotCommand = {
+	"CuboidBot", CuboidBotCommand_Execute, COMMAND_FLAG_UNSPLIT_ARGS,
+	{
+		"&a/client cuboid [block] [persist]",
+		"&eFills the 3D rectangle between two points with [block].",
+		"&eIf no block is given, uses your currently held block.",
+		"&e  If persist is given and is \"yes\", then the command",
+		"&e  will repeatedly cuboid, without needing to be typed in again.",
+	}
+};
+
+
+/*########################################################################################################################*
 *------------------------------------------------------Commands component-------------------------------------------------*
 *#########################################################################################################################*/
 static void OnInit(void) {
@@ -809,6 +1278,19 @@ static void OnInit(void) {
 	Commands_Register(&BlockEditCommand);
 	Commands_Register(&CuboidCommand);
 	Commands_Register(&ReplaceCommand);
+	Commands_Register(&BypassCommand);
+	Commands_Register(&RenameCommand);
+	Commands_Register(&PosFlyCommand);
+	Commands_Register(&carCommand);
+	Commands_Register(&NukerCommand);
+	Commands_Register(&ClickGuiCommand);
+	Commands_Register(&CuboidBotCommand);
+
+	Server.Tick(ScheduledTask_Add(0.07,    API_FillBot));
+	Server.Tick(ScheduledTask_Add(0.0025,  NukerCMD_Executer));
+	Server.Tick(ScheduledTask_Add(0.00225, carCMD_Execute));
+	Server.Tick(ScheduledTask_Add(0.00125, PosFlyCMD_Execute));
+	Server.Tick(ScheduledTask_Add(0.07,    API_Fill));
 }
 
 static void OnFree(void) {

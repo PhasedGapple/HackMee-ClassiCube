@@ -25,6 +25,7 @@
 #include "Input.h"
 #include "Errors.h"
 #include "Options.h"
+#include "Menus.h"
 
 static char nameBuffer[STRING_SIZE];
 static char motdBuffer[STRING_SIZE];
@@ -555,3 +556,31 @@ struct IGameComponent Server_Component = {
 	OnReset, /* Reset */
 	OnNewMap /* OnNewMap */
 };
+
+
+
+
+
+
+
+
+
+/* COPIED FUNCTIONS ---------------------- */
+/* COPIED FUNCTIONS ---------------------- */
+/* COPIED FUNCTIONS ---------------------- */
+/* COPIED FUNCTIONS ---------------------- */
+/* COPIED FUNCTIONS ---------------------- */
+/* COPIED FUNCTIONS ---------------------- */
+
+
+
+static void WriteString(cc_uint8* data, const cc_string* value) {
+	int i, count = min(value->length, STRING_SIZE);
+	for (i = 0; i < count; i++) {
+		char c = value->buffer[i];
+		if (c == '&') c = '%'; /* escape color codes */
+		data[i] = c;
+	}
+
+	for (; i < STRING_SIZE; i++) { data[i] = ' '; }
+}
