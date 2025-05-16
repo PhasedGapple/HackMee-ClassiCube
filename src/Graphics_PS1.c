@@ -249,41 +249,22 @@ void Gfx_TransferToVRAM(int x, int y, int w, int h, void* pixels) {
 //   10 texture pages are occupied by the doublebuffered display
 //   22 texture pages are usable for textures
 // These 22 pages are then divided into:
-//     - 5 for 128+ wide horizontal, 6 otherwise
-//     - 11 pages for vertical textures
+//     - 4,4,3 pages for horizontal textures
+//     - 4,4,3 pages for vertical textures
 #define TPAGE_WIDTH   64
 #define TPAGE_HEIGHT 256
 #define TPAGES_PER_HALF 16
 
-// Horizontally oriented textures (first group of 16)
-#define TPAGE_START_HOR 5
-#define MAX_HOR_TEX_PAGES 11
-#define MAX_HOR_TEX_LINES (MAX_HOR_TEX_PAGES * TPAGE_HEIGHT)
+#define MAX_TEX_GROUPS    3
+#define TEX_GROUP_LINES 256
+#define MAX_TEX_LINES   (MAX_TEX_GROUPS * TEX_GROUP_LINES)
 
-// Horizontally oriented textures (second group of 16)
-#define TPAGE_START_VER (16 + 5)
-#define MAX_VER_TEX_PAGES 11
-#define MAX_VER_TEX_LINES (MAX_VER_TEX_PAGES * TPAGE_WIDTH)
-
-static cc_uint8 vram_used[(MAX_HOR_TEX_LINES + MAX_VER_TEX_LINES) / 8];
+static cc_uint8 vram_used[(MAX_TEX_LINES + MAX_TEX_LINES) / 8];
 #define VRAM_SetUsed(line) (vram_used[(line) / 8] |=  (1 << ((line) % 8)))
 #define VRAM_UnUsed(line)  (vram_used[(line) / 8] &= ~(1 << ((line) % 8)))
 #define VRAM_IsUsed(line)  (vram_used[(line) / 8] &   (1 << ((line) % 8)))
 
 #define VRAM_BoundingAxis(width, height) height > width ? width : height
-
-static void VRAM_GetBlockRange(int width, int height, int* beg, int* end) {
-	if (height > width) {
-		*beg = MAX_HOR_TEX_LINES;
-		*end = MAX_HOR_TEX_LINES + MAX_VER_TEX_LINES;
-	} else if (width >= 128) {
-		*beg = 0;
-		*end = 5 * TPAGE_HEIGHT;
-	} else {
-		*beg = 5 * TPAGE_HEIGHT;
-		*end = MAX_HOR_TEX_LINES;
-	}
-}
 
 static cc_bool VRAM_IsRangeFree(int beg, int end) {
 	for (int i = beg; i < end; i++) 
@@ -293,16 +274,33 @@ static cc_bool VRAM_IsRangeFree(int beg, int end) {
 	return true;
 }
 
-static int VRAM_FindFreeBlock(int width, int height) {
-	int beg, end;
-	VRAM_GetBlockRange(width, height, &beg, &end);
-	
+static int VRAM_FindFreeLines(int group, int lines) {
+	int beg = group * TEX_GROUP_LINES;
+	int end = beg + TEX_GROUP_LINES;
+ 
 	// TODO kinda inefficient
-	for (int i = beg; i < end - height; i++) 
+	for (int i = beg; i < end - lines; i++) 
 	{
 		if (VRAM_IsUsed(i)) continue;
 		
-		if (VRAM_IsRangeFree(i, i + height)) return i;
+		if (VRAM_IsRangeFree(i, i + lines)) return i;
+	}
+	return -1;
+}
+
+static int VRAM_FindFreeBlock(int width, int height) {
+	int l;
+
+	if (height > width) {
+		// Vertically oriented texture
+		if ((l = VRAM_FindFreeLines(3, width)) >= 0) return l;
+		if ((l = VRAM_FindFreeLines(4, width)) >= 0) return l;
+		if ((l = VRAM_FindFreeLines(5, width)) >= 0) return l;
+	} else {
+		// Horizontally oriented texture
+		if ((l = VRAM_FindFreeLines(0, height)) >= 0) return l;
+		if ((l = VRAM_FindFreeLines(1, height)) >= 0) return l;
+		if ((l = VRAM_FindFreeLines(2, height)) >= 0) return l;
 	}
 	return -1;
 }
@@ -323,11 +321,15 @@ static void VRAM_FreeBlock(int line, int width, int height) {
 	}
 }
 
+#define TPAGE_START_HOR  5
+#define TPAGE_START_VER 21
+
 static int VRAM_CalcPage(int line) {
-	if (line < MAX_HOR_TEX_LINES) {
-		return TPAGE_START_HOR + (line / TPAGE_HEIGHT);
+	if (line < TEX_GROUP_LINES * MAX_TEX_GROUPS) {
+		int group = line / TPAGE_HEIGHT;
+		return TPAGE_START_HOR + (group * 4);
 	} else {
-		line -= MAX_HOR_TEX_LINES;
+		line -= TEX_GROUP_LINES * MAX_TEX_GROUPS;
 		return TPAGE_START_VER + (line / TPAGE_WIDTH);
 	}
 }
@@ -713,17 +715,17 @@ void Gfx_DeleteDynamicVb(GfxResourceID* vb) { Gfx_DeleteVb(vb); }
 *---------------------------------------------------------Matrices--------------------------------------------------------*
 *#########################################################################################################################*/
 static struct Matrix _view, _proj;
-static MATRIX transform_matrix;
 
-#define ToFixed(v) (int)(v * (1 << 12))
+#define ToFixed(v)   (int)(v * (1 << 12))
 #define ToFixedTr(v) (int)(v * (1 << 8))
 
 static void LoadTransformMatrix(struct Matrix* src) {
+	MATRIX transform_matrix;
 	// Use w instead of z
 	// (row123.z = row123.w, only difference is row4.z/w being different)
-	transform_matrix.t[0] = ToFixedTr(src->row4.x);
-	transform_matrix.t[1] = ToFixedTr(-src->row4.y);
-	transform_matrix.t[2] = ToFixedTr(src->row4.w);
+	GTE_Set_TransX(ToFixedTr( src->row4.x));
+	GTE_Set_TransY(ToFixedTr(-src->row4.y));
+	GTE_Set_TransZ(ToFixedTr( src->row4.w));
 
 
 	transform_matrix.m[0][0] = ToFixed(src->row1.x);
@@ -739,7 +741,6 @@ static void LoadTransformMatrix(struct Matrix* src) {
 	transform_matrix.m[2][2] = ToFixed(src->row3.w);
 	
 	gte_SetRotMatrix(&transform_matrix);
-	gte_SetTransMatrix(&transform_matrix);
 }
 
 void Gfx_LoadMatrix(MatrixType type, const struct Matrix* matrix) {
@@ -903,25 +904,24 @@ static void DrawColouredQuads3D(int verticesCount, int startVertex) {
 		if ((cc_uint8*)poly > max) break;
 
 		gte_ldv3(&v0->xyz, &v1->xyz, &v3->xyz);
-		gte_rtpt();
-		// rtpt takes 23 cycles
+		GTE_Exec_RTPT(); // 23 cycles
 		setlen(poly, POLY_LEN_F4);
 		poly->rgbc = v0->rgbc;
 	
 		// Calculate Z depth
-		int p = 0;
-		gte_avsz3();
-		gte_stotz( &p );
-		if (p == 0 || (p>>2) > OT_LENGTH) continue;
+		GTE_Exec_AVSZ3(); // 5 cycles
+		int p; GTE_Get_OTZ(p);
+		if (p == 0 || (p >> 2) > OT_LENGTH) continue;
 
 		gte_stsxy0( &poly->x0 );
 		gte_stsxy1( &poly->x1 );
 		gte_stsxy2( &poly->x2 );
-		gte_ldv0( &v2->xyz );
-		gte_rtps();
-		gte_stsxy( &poly->x3 );
 
+		gte_ldv0( &v2->xyz );
+		GTE_Exec_RTPS(); // 15 cycles
 		addPrim(&ot[p >> 2], poly);
+		gte_stsxy( &poly->x3 );
+		
 		poly++;
 	}
 	next_packet = poly;
@@ -949,27 +949,29 @@ static void DrawTexturedQuads3D(int verticesCount, int startVertex) {
 		if ((cc_uint8*)poly > max) break;
 	
 		gte_ldv3(&v0->xyz, &v1->xyz, &v3->xyz);
-		gte_rtpt();
-		// rtpt takes 23 cycles
+		GTE_Exec_RTPT(); // 23 cycles
 		setlen(poly, POLY_LEN_FT4);
-		poly->rgbc  = v0->rgbc | blend_mode;
+		poly->rgbc = v0->rgbc | blend_mode;
 
 		// Check for backface culling
-		int p = 0;
-		gte_nclip();
-		gte_stopz( &p );
-		if (p > 0) continue;
+		GTE_Exec_NCLIP(); // 8 cycles
+		poly->tpage = tpage;
+		poly->clut  = clut;
+		int clip; GTE_Get_MAC0(clip);
+		if (clip > 0) continue;
 	
 		// Calculate Z depth
-		gte_avsz3();
-		gte_stotz( &p );
-		if (p == 0 || (p>>2) > OT_LENGTH) continue;
+		GTE_Exec_AVSZ3(); // 5 cycles
+		int p; GTE_Get_OTZ(p);
+		if (p == 0 || (p >> 2) > OT_LENGTH) continue;
 
 		gte_stsxy0( &poly->x0 );
 		gte_stsxy1( &poly->x1 );
 		gte_stsxy2( &poly->x2 );
 		gte_ldv0( &v2->xyz );
-		gte_rtps();
+
+		GTE_Exec_RTPS(); // 15 cycles
+		addPrim(&ot[p >> 2], poly);
 		gte_stsxy( &poly->x3 );
 	
 		poly->u0 = (v1->u >> uShift) + uOffset;
@@ -981,9 +983,6 @@ static void DrawTexturedQuads3D(int verticesCount, int startVertex) {
 		poly->u3 = (v3->u >> uShift) + uOffset;
 		poly->v3 = (v3->v >> vShift) + vOffset;
 	
-		poly->tpage = tpage;
-		poly->clut  = clut;
-		addPrim(&ot[p >> 2], poly);
 		poly++;
 	}
 	next_packet = poly;

@@ -1,5 +1,7 @@
 #include "Core.h"
 #if defined CC_BUILD_DREAMCAST
+
+#define CC_XTEA_ENCRYPTION
 #include "_PlatformBase.h"
 #include "Stream.h"
 #include "ExtMath.h"
@@ -226,7 +228,7 @@ static int VMUFile_Do(cc_file* file, int mode) {
 	vmu_pkg_t pkg;
 	
 	errno = 0;
-	fd    = fs_open("/vmu/a1/CCOPT.txt", O_RDONLY);
+	fd    = fs_open("/vmu/a1/CCOPT.txt", O_RDONLY | O_META);
 	
 	// Try to extract stored data from the VMU
 	if (fd >= 0) {
@@ -285,7 +287,7 @@ static cc_result VMUFile_Close(cc_file file) {
 	
 	// Copy into VMU file
 	errno = 0;
-	fd    = fs_open("/vmu/a1/CCOPT.txt", O_RDWR | O_CREAT | O_TRUNC);
+	fd    = fs_open("/vmu/a1/CCOPT.txt", O_RDWR | O_CREAT | O_TRUNC | O_META);
 	if (fd < 0) return errno;
 	
 	fs_write(fd, pkg_data, pkg_len);
@@ -741,3 +743,4 @@ static cc_result GetMachineID(cc_uint32* key) {
 	return 0;
 }
 #endif
+
