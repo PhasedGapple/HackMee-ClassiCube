@@ -30,8 +30,8 @@ struct ChatCommand {
 static void CuboidCommand_Execute(const cc_string* args, int argsCount);
 static void bypassCMD_Execute(const cc_string* args, int argsCount);
 static void RenameCMD_Execute(const cc_string* args, int argsCount);
-static void PosFlyCMD_Executer();
-static void carCMD_Executer();
+void PosFlyCMD_Executer();
+void carCMD_Executer();
 static void NukerCMD_Execute(const cc_string* args, int argsCount);
 
 
