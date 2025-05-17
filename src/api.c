@@ -51,7 +51,7 @@ int y;
 //-----------------------------------
 
 
-static void nop() {}
+void nop() {}
 
 
 //-----------------------------------
@@ -239,7 +239,7 @@ void API_FillBot()
 //---------------------------------------------
 
 #define PAUSE_MAX_BTNS 6
-static struct PauseScreen {
+struct PauseScreen {
 	Screen_Body
 		int descsCount;
 	const struct SimpleButtonDesc* descs;
@@ -247,30 +247,30 @@ static struct PauseScreen {
 	struct TextWidget title;
 } PauseScreen;
 
-static void PauseScreen1Base_Quit(void* a, void* b) {
+void PauseScreen1Base_Quit(void* a, void* b) {
 	Window_RequestClose();
 }
 
-static void PauseScreen1Base_Game(void* a, void* b) {
+void PauseScreen1Base_Game(void* a, void* b) {
 	Gui_Remove((struct Screen*)&PauseScreen);
 }
 
-static void PauseScreen1Base_ContextRecreated(struct PauseScreen* s, struct FontDesc* titleFont) {
+void PauseScreen1Base_ContextRecreated(struct PauseScreen* s, struct FontDesc* titleFont) {
 	Screen_UpdateVb(s);
 	Gui_MakeTitleFont(titleFont);
 	Menu_SetButtons(s->btns, titleFont, s->descs, s->descsCount);
 	TextWidget_SetConst(&s->title, "&4Hack&bMee &fMenu", titleFont);
 }
 
-static void PauseScreen1Base_AddWidgets(struct PauseScreen* s, int width) {
+void PauseScreen1Base_AddWidgets(struct PauseScreen* s, int width) {
 	static const struct SimpleButtonDesc descs1[] = { -150,   50, "Not set.",          nop };
 	TextWidget_Add(s, &s->title);
 	Menu_AddButtons(s, s->btns, width, s->descs, s->descsCount);
 }
 
-static struct Widget* pause_widgets[1 + 6 + 2];
+struct Widget* pause_widgets[1 + 6 + 2];
 
-static void PauseScreen1_CheckHacksAllowed(void* screen) {
+void PauseScreen1_CheckHacksAllowed(void* screen) {
 	struct PauseScreen* s = (struct PauseScreen*)screen;
 	if (Gui.ClassicMenu) return;
 	// Widget_SetDisabled(&s->btns[1],
@@ -278,7 +278,7 @@ static void PauseScreen1_CheckHacksAllowed(void* screen) {
 	s->dirty = true;
 }
 
-static void PauseScreen1_ContextRecreated(void* screen) {
+void PauseScreen1_ContextRecreated(void* screen) {
 	struct PauseScreen* s = (struct PauseScreen*)screen;
 	struct FontDesc titleFont;
 	PauseScreen1Base_ContextRecreated(s, &titleFont);
@@ -288,23 +288,23 @@ static void PauseScreen1_ContextRecreated(void* screen) {
 	Font_Free(&titleFont);
 }
 
-static void PauseScreen1_Layout(void* screen) {
+void PauseScreen1_Layout(void* screen) {
 	struct PauseScreen* s = (struct PauseScreen*)screen;
 	Menu_LayoutButtons(s->btns, s->descs, s->descsCount);
 	Widget_SetLocation(&s->quit, ANCHOR_MAX, ANCHOR_MAX, 5, 5);
 	Widget_SetLocation(&s->title, ANCHOR_CENTRE, ANCHOR_CENTRE, 0, -200);
 }
 
-static void Btn_ClickOption1() { cc_string args = (String_FromRawArray("")); CuboidCommand_Execute(&args, 1); }
-static void Btn_ClickOption2() {
+void Btn_ClickOption1() { cc_string args = (String_FromRawArray("")); CuboidCommand_Execute(&args, 1); }
+void Btn_ClickOption2() {
 	cc_string args = (String_FromRawArray("motd"));
 	bypassCMD_Execute(&args, 1);
 }
-static void Btn_ClickClose(void* w, int x, int y) {}
+void Btn_ClickClose(void* w, int x, int y) {}
 
-static void PauseScreen1_Init(void* screen) {
+void PauseScreen1_Init(void* screen) {
 	struct PauseScreen* s = (struct PauseScreen*)screen;
-	static const struct SimpleButtonDesc descs[] = {
+	const struct SimpleButtonDesc descs[] = {
 		{ -325,  -200, "&bPosFly",        PosFlyCMD_Executer },
 		{ -325,  -150, "&0Car Mode",      carCMD_Executer  },
 		{ -325,  -100, "&4Hacks Bypass",  Btn_ClickOption2	 },
@@ -328,11 +328,11 @@ static void PauseScreen1_Init(void* screen) {
 
 }
 
-static void PauseScreen1_Free(void* screen) {
+void PauseScreen1_Free(void* screen) {
 	Event_Unregister_(&UserEvents.HackPermsChanged, screen, PauseScreen1_CheckHacksAllowed);
 }
 
-static const struct ScreenVTABLE PauseScreen_VTABLE = {
+const struct ScreenVTABLE PauseScreen_VTABLE = {
 	PauseScreen1_Init,   nop, PauseScreen1_Free,
 	MenuScreen_Render2, Screen_BuildMesh,
 	Menu_InputDown,     Screen_InputUp,    nop, nop,
