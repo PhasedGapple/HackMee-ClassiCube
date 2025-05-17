@@ -27,12 +27,12 @@ struct ChatCommand {
 	struct ChatCommand* next; /* Next command in linked-list of client commands */
 };
 
-void CuboidCommand_Execute(const cc_string* args, int argsCount);
-void bypassCMD_Execute(const cc_string* args, int argsCount);
-void RenameCMD_Execute(const cc_string* args, int argsCount);
-void PosFlyCMD_Executer();
-void carCMD_Executer();
-void NukerCMD_Execute(const cc_string* args, int argsCount);
+static void CuboidCommand_Execute(const cc_string* args, int argsCount);
+static void bypassCMD_Execute(const cc_string* args, int argsCount);
+static void RenameCMD_Execute(const cc_string* args, int argsCount);
+static void PosFlyCMD_Executer();
+static void carCMD_Executer();
+static void NukerCMD_Execute(const cc_string* args, int argsCount);
 
 
 /* Registers a client-side command, allowing it to be used with /client [cmd name] */
