@@ -1,50 +1,67 @@
-
-
-
 <!doctype html>
 <html>
-    <head>
-        <title>Webclient</title>
-    </head>
-    <body>
-        <!-- the canvas *must not* have any border or padding, or mouse coords will be wrong -->
-<canvas id="canvas" style="display:block; border:0; padding:0; background-color: black;" 
-		oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
-<span id="logmsg"></span>
-
-<script type='text/javascript'>
-  var Module = {
-    preRun: [],
-    postRun: [],
-    arguments: [ "HackMee User" ],
-    print: function(text) {
-      if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-      console.log(text);
-    },
-    printErr: function(text) {
-      if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-      console.error(text);
-    },
-    canvas: (function() { return document.getElementById('canvas'); })(),
-    setStatus: function(text) {
-      console.log(text);
-      document.getElementById('logmsg').innerHTML = text;
-    },
-    totalDependencies: 0,
-    monitorRunDependencies: function(left) {
-      this.totalDependencies = Math.max(this.totalDependencies, left);
-      Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+<head>
+  <title>Webclient</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      width: 100%;
+      background-color: black;
     }
-  };
-  Module.setStatus('Downloading...');
-  window.onerror = function(msg) {
-    // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
-    Module.setStatus('Exception thrown, see JavaScript console (' + msg + ')');
-    Module.setStatus = function(text) {
-      if (text) Module.printErr('[post-exception status] ' + text);
+    canvas {
+      display: block;
+      border: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+  <span id="logmsg" style="position:absolute; top:0; left:0; color:white; z-index:1000;"></span>
+
+  <script type='text/javascript'>
+    function resizeCanvas() {
+      var canvas = document.getElementById('canvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('load', resizeCanvas);
+
+    var Module = {
+      preRun: [],
+      postRun: [],
+      arguments: [ "HackMee User" ],
+      print: function(text) {
+        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+        console.log(text);
+      },
+      printErr: function(text) {
+        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+        console.error(text);
+      },
+      canvas: (function() { return document.getElementById('canvas'); })(),
+      setStatus: function(text) {
+        console.log(text);
+        document.getElementById('logmsg').innerHTML = text;
+      },
+      totalDependencies: 0,
+      monitorRunDependencies: function(left) {
+        this.totalDependencies = Math.max(this.totalDependencies, left);
+        Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+      }
     };
-  };
-</script>
-<script async type="text/javascript" src="./static/classisphere.js"></script>
-    </body>
+    Module.setStatus('Downloading...');
+    window.onerror = function(msg) {
+      Module.setStatus('Exception thrown, see JavaScript console (' + msg + ')');
+      Module.setStatus = function(text) {
+        if (text) Module.printErr('[post-exception status] ' + text);
+      };
+    };
+  </script>
+  <script async type="text/javascript" src="./static/classisphere.js"></script>
+</body>
 </html>
