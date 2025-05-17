@@ -12,39 +12,101 @@
 		oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
 <span id="logmsg"></span>
 
-<script type='text/javascript'>
-  var Module = {
-    preRun: [],
-    postRun: [],
-    arguments: ['singleplayer'],
-    print: function(text) {
-      if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-      console.log(text);
-    },
-    printErr: function(text) {
-      if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-      console.error(text);
-    },
-    canvas: (function() { return document.getElementById('canvas'); })(),
-    setStatus: function(text) {
-      console.log(text);
-      document.getElementById('logmsg').innerHTML = text;
-    },
-    totalDependencies: 0,
-    monitorRunDependencies: function(left) {
-      this.totalDependencies = Math.max(this.totalDependencies, left);
-      Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+<script type='text/javascript' referrerpolicy="no-referrer-when-downgrade">
+      function logText(text) { 
+        console.log(text);
+        var logElement = document.getElementById('logmsg');
+        logElement.innerHTML = text;
+      }
+
+      // ensure game still runs even without IndexedDB
+      var idb = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+      if (!idb) { alert('IndexedDB unsupported, therefore\nmaps and settings will not save');window.mozIndexedDB = {}; }
+
+      // need to load IndexedDB before running the game
+      function preloadIndexedDB() { _interop_LoadIndexedDB(); }
+      
+      function forceTouchLayout() {
+        var elem;
+        try {
+          elem = document.getElementById('footer');
+          elem.parentNode.removeChild(elem);
+          elem = document.getElementById('content');
+          elem.parentNode.removeChild(elem);
+        } catch (err) { }
+      }
+      
+      function getCssInt(styles, prop) { return parseInt(styles.getPropertyValue(prop), 10); }
+      function calcViewportWidth(elem) {
+        var parent = elem.parentNode;
+        var styles = window.getComputedStyle(parent, null);
+        return parent.offsetWidth - getCssInt(styles, 'padding-left') - getCssInt(styles, 'padding-right');
+      }
+
+      function resizeGameCanvas() {
+        var cc_canv = document.getElementById('canvas');
+        var dpi = window.devicePixelRatio;
+        var aspect_ratio = 16/9;
+
+        var viewport_w = calcViewportWidth(cc_canv);
+        var viewport_h = viewport_w / aspect_ratio;
+
+        var canv_w = Math.round(viewport_w);
+        var canv_h = Math.round(viewport_h);
+
+        if (canv_h % 2) { canv_h = canv_h - 1; }
+        if (canv_w % 2) { canv_w = canv_w - 1; }
+
+
+        cc_canv.width  = canv_w * dpi;
+        cc_canv.height = canv_h * dpi;
+      }
+      
+      function logFatal(event) {
+        Module.setStatus('ClassiCube has crashed (' + event + ')\nPlease report this on the ClassiCube forums or to UnknownShadow200\n\nTo see more details, open Developer Tools and go to Console tab');
+        Module.setStatus = function(text) {
+          if (event) Module.printErr('[post-exception status] ' + event);
+        };
+      }
+      
+      var Module = {
+        preRun: [ preloadIndexedDB, resizeGameCanvas ],
+        postRun: [],
+        arguments: ['Singleplayer'],
+        print: function(text) {
+            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+            console.log(text);
+        },
+        printErr: function(text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+          console.error(text);
+        },
+        canvas: (function() {
+          return document.getElementById('canvas');
+        })(),
+        setStatus: logText,
+        totalDependencies: 0,
+        monitorRunDependencies: function(left) {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        },
+        onAbort: function(why) { logFatal('abort: ' + why); }
+      };
+
+      Module.setStatus('Downloading...');
+      window.onerror = function(event) { logFatal(event); };
+
+      function onDownloadFailed(src) {
+        // retry without CORS
+        logText('Failed to download ClassiCube.js, retrying..');
+        var root = src.parentNode;
+        root.removeChild(src);
+
+        var elem = document.createElement('script');
+        elem.setAttribute('async', '');
+        elem.setAttribute('src', './static/classisphere.js');
+        root.appendChild(elem);
     }
-  };
-  Module.setStatus('Downloading...');
-  window.onerror = function(msg) {
-    // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
-    Module.setStatus('Exception thrown, see JavaScript console (' + msg + ')');
-    Module.setStatus = function(text) {
-      if (text) Module.printErr('[post-exception status] ' + text);
-    };
-  };
-</script>
-<script async type="text/javascript" src="/static/classisphere.js"></script>
+    </script>
     </body>
 </html>
