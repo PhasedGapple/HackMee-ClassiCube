@@ -16,7 +16,7 @@
   var Module = {
     preRun: [],
     postRun: [],
-    arguments: [ {username}, {mppass}, {server ip}, {server port} ],
+    arguments: ['singleplayer'],
     print: function(text) {
       if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
       console.log(text);
