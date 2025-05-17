@@ -3370,7 +3370,7 @@ function _fetchTexturePackAsync(url, onload, onerror) {
 
 function _interop_AsyncDownloadTexturePack(rawPath) {
  var path = UTF8ToString(rawPath);
- var url = "/static/default.zip";
+ var url = "./static/default.zip";
  Module.setStatus("Downloading textures.. (1/2)");
  _fetchTexturePackAsync(url, function(buffer) {
   CCFS.writeFile(path, new Uint8Array(buffer));
