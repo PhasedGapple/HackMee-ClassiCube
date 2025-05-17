@@ -17,3 +17,8 @@ a method to cuboid bypassed on mcgalaxy but is slow <br> <br>
 changes the motd clientside and re-enables hax <br> <br>
 - **TP** <br>
 client tp command re-enabled <br> <br>
+
+
+## Webclient
+Try it yourself in the webclient
+WEBCLIENT (BROKEN - HACKMEE DOESNT WORK) - https://phasedgapple.github.io/HackMee-ClassiCube/
