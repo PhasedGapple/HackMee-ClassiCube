@@ -51,7 +51,7 @@ int y;
 //-----------------------------------
 
 
-void NOP() {}
+void nop() {}
 
 
 //-----------------------------------
@@ -263,7 +263,7 @@ void PauseScreen1Base_ContextRecreated(struct PauseScreen* s, struct FontDesc* t
 }
 
 void PauseScreen1Base_AddWidgets(struct PauseScreen* s, int width) {
-	static const struct SimpleButtonDesc descs1[] = { -150,   50, "Not set.",          NOP };
+	static const struct SimpleButtonDesc descs1[] = { -150,   50, "Not set.",          nop };
 	TextWidget_Add(s, &s->title);
 	Menu_AddButtons(s, s->btns, width, s->descs, s->descsCount);
 }
@@ -333,12 +333,12 @@ void PauseScreen1_Free(void* screen) {
 }
 
 const struct ScreenVTABLE PauseScreen_VTABLE = {
-	PauseScreen1_Init,   NOP, PauseScreen1_Free,
+	PauseScreen1_Init,   nop, PauseScreen1_Free,
 	MenuScreen_Render2, Screen_BuildMesh,
-	Menu_InputDown,     Screen_InputUp,    NOP, NOP,
-	Menu_PointerDown,   Screen_PointerUp,  Menu_PointerMove, NOP,
+	Menu_InputDown,     Screen_InputUp,    nop, nop,
+	Menu_PointerDown,   Screen_PointerUp,  Menu_PointerMove, nop,
 	PauseScreen1_Layout, Screen_ContextLost, PauseScreen1_ContextRecreated,
-	NOP
+	nop
 };
 void API_PauseScreen1_Show() {
 	struct PauseScreen* s = &PauseScreen;

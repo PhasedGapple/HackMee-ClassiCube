@@ -15,6 +15,5 @@ void API_Fill();
 void API_SortFillBot(Vec3 startPos, Vec3 endPos, BlockID block1);
 void API_FillBot();
 void API_PauseScreen1_Show();
-void NOP();
 
 #endif
